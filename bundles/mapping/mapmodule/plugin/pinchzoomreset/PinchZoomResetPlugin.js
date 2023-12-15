@@ -55,12 +55,12 @@ Oskari.clazz.define('Oskari.mapframework.bundle.mapmodule.plugin.PinchZoomResetP
          * @return {Boolean} true if page is zoomed in
          */
         isZoomedIn: function () {
-            return window.innerWidth !== window.visualViewport.width || window.innerHeight !== window.visualViewport.height;
+            return parseInt(window.innerWidth) !== parseInt(window.visualViewport.width) || parseInt(window.innerHeight) !== parseInt(window.visualViewport.height);
         },
 
         /**
          * Adjust the location of the button according to the changed visual viewports dimensions after resize or scroll
-         * @method isZoomedIn
+         * @method reposition
          *
          * @return {Boolean} true if page is zoomed in
          */
@@ -80,6 +80,24 @@ Oskari.clazz.define('Oskari.mapframework.bundle.mapmodule.plugin.PinchZoomResetP
             jQueryElement.css('top', window.visualViewport.offsetTop + 'px');
             jQueryElement.css('left', window.visualViewport.width / 2 + window.visualViewport.offsetLeft + 'px');
             jQueryElement.css('transform', 'translate(-50%)');
+
+            this.debugContainer.css('position', 'fixed');
+            this.debugContainer.css('top', window.visualViewport.offsetTop + jQueryElement.height() + 'px');
+            this.debugContainer.css('left', window.visualViewport.offsetLeft + 'px');
+            this.debugContainer.css('width', window.visualViewport.width + 'px');
+
+            let innerHTML = '<div>';
+            innerHTML += 'window.innerWidth=' + window?.innerWidth + '<br>';
+            innerHTML += 'window.innerHeight=' + window?.innerHeight + '<br>';
+            innerHTML += 'window.outerWidth=' + window?.outerWidth + '<br>';
+            innerHTML += 'window.outerHeight=' + window?.outerHeight + '<br>';
+            innerHTML += 'window.visualViewport.width=' + Number.parseFloat(window?.visualViewport?.width).toFixed(3) + '<br>';
+            innerHTML += 'window.visualViewport.height=' + Number.parseFloat(window?.visualViewport?.height).toFixed(3) + '<br>';
+            innerHTML += 'window.visualViewport.scale=' + Number.parseFloat(window?.visualViewport?.scale).toFixed(3) + '<br>';
+            innerHTML += 'document.documentElement.clientWidth=' + document?.documentElement?.clientWidth + '<br>';
+            innerHTML += 'document.documentElement.clientHeight=' + document?.documentElement?.clientHeight + '<br>';
+            innerHTML += '</div>';
+            this.debugContainer[0].innerHTML = innerHTML;
         },
         /**
          * @method _createControlElement
@@ -96,6 +114,13 @@ Oskari.clazz.define('Oskari.mapframework.bundle.mapmodule.plugin.PinchZoomResetP
         _startPluginImpl: function () {
             this.setElement(this._createControlElement());
             this.addToPluginContainer(this.getElement());
+
+            this.debugContainer = jQuery('<div class="mapplugin tsunkelo"></div>');
+            this.debugContainer.css('border', '1px solid red');
+            this.debugContainer.css('background-color', 'rgba(255, 255, 255, 1)');
+            this.debugContainer.css('font-size', 'smaller');
+            this.debugContainer[0].innerHTML = '<div/>';
+            document.body.appendChild(this.debugContainer[0]);
             this.refresh();
             if (this.isVisible()) {
                 this.reposition();
