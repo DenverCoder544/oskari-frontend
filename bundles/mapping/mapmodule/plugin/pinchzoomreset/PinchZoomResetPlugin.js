@@ -44,8 +44,10 @@ Oskari.clazz.define('Oskari.mapframework.bundle.mapmodule.plugin.PinchZoomResetP
             plugin: jQuery('<div class="mapplugin pinchzoomresetcontainer"></div>')
         };
 
-        window.visualViewport.addEventListener('resize', () => this.reposition());
+        window.visualViewport.addEventListener('resize', () => { console.log('visual viewport.resize'); this.reposition(); });
         window.visualViewport.addEventListener('scroll', () => this.reposition());
+
+        window.addEventListener('resize', () => { console.log('window.resize'); this.reposition(); });
     },
     {
         /**
