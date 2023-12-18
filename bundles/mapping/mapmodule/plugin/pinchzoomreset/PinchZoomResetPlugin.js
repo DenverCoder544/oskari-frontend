@@ -85,8 +85,9 @@ Oskari.clazz.define('Oskari.mapframework.bundle.mapmodule.plugin.PinchZoomResetP
             this.debugContainer.css('top', window.visualViewport.offsetTop + jQueryElement.height() + 'px');
             this.debugContainer.css('left', window.visualViewport.offsetLeft + 'px');
             this.debugContainer.css('width', window.visualViewport.width + 'px');
-
             let innerHTML = '<div>';
+            innerHTML += '<b>Updated: ' + new Date().toLocaleTimeString() + '</b><br>';
+            innerHTML += '<div><button id="resetbutton">Reset</button></div><br>';
             innerHTML += 'window.innerWidth=' + window?.innerWidth + '<br>';
             innerHTML += 'window.innerHeight=' + window?.innerHeight + '<br>';
             innerHTML += 'window.outerWidth=' + window?.outerWidth + '<br>';
@@ -98,6 +99,7 @@ Oskari.clazz.define('Oskari.mapframework.bundle.mapmodule.plugin.PinchZoomResetP
             innerHTML += 'document.documentElement.clientHeight=' + document?.documentElement?.clientHeight + '<br>';
             innerHTML += '</div>';
             this.debugContainer[0].innerHTML = innerHTML;
+            document.getElementById('resetbutton').onclick = () => { this.resetPinchZoom(); };
         },
         /**
          * @method _createControlElement
