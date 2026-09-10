@@ -47,4 +47,10 @@ export const parseLayerData = (layer, mapLayerJson) => {
     // MyFeatures layers always have a dataprovider registered so the generic organization name set by
     // MapLayerService would override the layer's own orgName. Restore the real per-layer value here.
     layer.setOrganizationName(mapLayerJson.orgName || '');
+    // "created" is an epoch timestamp in seconds (with fractional sub-second precision), but
+    // MapLayerService only accepts it via Date.parse() (which fails for epoch numbers) and Date()
+    // expects milliseconds, so convert and set it explicitly here instead.
+    if (mapLayerJson.created) {
+        layer.setCreated(new Date(mapLayerJson.created * 1000));
+    }
 };
