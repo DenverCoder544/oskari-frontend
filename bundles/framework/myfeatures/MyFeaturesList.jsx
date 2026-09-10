@@ -28,7 +28,7 @@ export const MyFeaturesList = ({ data = [], controller, loading }) => {
             align: 'left',
             title: <Message messageKey='tab.grid.desc' />,
             dataIndex: 'desc',
-            sorter: getSorterFor('description')
+            sorter: getSorterFor('desc')
         },
         {
             align: 'left',
