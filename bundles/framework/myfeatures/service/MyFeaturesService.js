@@ -268,7 +268,8 @@ export class MyFeaturesService {
             this.addLayerToService({
                 ...json,
                 name: localeForLang?.name || '',
-                subtitle: localeForLang?.desc || ''
+                subtitle: localeForLang?.desc || '',
+                orgName: localeForLang?.source || ''
             });
             return true;
         });
@@ -287,7 +288,10 @@ export class MyFeaturesService {
             subtitle: localeForLang?.desc
         });
         // for some reason, modelbuilders are not called in mapLayerService.updateLayer()
-        parseLayerData(layer, updatedLayer);
+        parseLayerData(layer, {
+            ...updatedLayer,
+            orgName: localeForLang?.source || ''
+        });
         // force mapmodule to reload a style when the layer is added/refreshed on the map
         layer.setDescribeLayerStatus(DESCRIBE_LAYER.UNDEFINED);
         if (this.sandbox.isLayerAlreadySelected(id)) {
