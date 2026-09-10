@@ -44,4 +44,7 @@ export const handleMyFeaturesLayers = (sandbox, mapLayerService, getMsg) => {
 
 export const parseLayerData = (layer, mapLayerJson) => {
     layer.setFeatureCount(mapLayerJson.featureCount);
+    // MyFeatures layers always have a dataprovider registered so the generic organization name set by
+    // MapLayerService would override the layer's own orgName. Restore the real per-layer value here.
+    layer.setOrganizationName(mapLayerJson.orgName || '');
 };
