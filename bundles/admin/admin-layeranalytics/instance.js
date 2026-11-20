@@ -1,6 +1,16 @@
 import { Messaging } from 'oskari-ui/util';
 import { Message } from 'oskari-ui';
 import React from 'react';
+import { NavigationAdapter } from 'oskari-ui/util/NavigationAdapter';
+import { showFlyout } from 'oskari-ui/components/window';
+import { styled } from 'styled-components';
+import { LayerAnalyticsView } from './view/LayerAnalyticsView';
+
+const FLYOUT_ID = 'AdminLayerAnalytics';
+const FlyoutPadding = styled('div')`
+    margin: 0;
+    padding: 1.5em 1.5em 1.5em 1.75em;
+`;
 
 const getMessage = (key, args) => <Message messageKey={key} messageArgs={args} bundleKey='admin-layeranalytics' />;
 
@@ -22,7 +32,13 @@ Oskari.clazz.define('Oskari.framework.bundle.admin-layeranalytics.AdminLayerAnal
         this.isLoading = true;
         this.analyticsListData = [];
         this.selectedLayerData = {};
+        this.view = new LayerAnalyticsView(this, () => this.updateUI());
         this.mapLayerService = Oskari.getSandbox().getService('Oskari.mapframework.service.MapLayerService');
+        this.mainNavigationControls = null;
+        this.navigation = new NavigationAdapter(this, {
+            createMenuItem: (navigation) => this.createMenuItem(navigation),
+            onStop: () => this.closeMainNavigationFlyout()
+        });
     }, {
         __name: 'admin-layeranalytics',
         /**
@@ -44,7 +60,7 @@ Oskari.clazz.define('Oskari.framework.bundle.admin-layeranalytics.AdminLayerAnal
         eventHandlers: {
             'userinterface.ExtensionUpdatedEvent': function (event) {
                 // Not handle other extension update events
-                if (event.getExtension().getName() !== this.getName()) {
+                if (this.navigation.service || event.getExtension().getName() !== this.getName()) {
                     return;
                 }
 
@@ -89,14 +105,88 @@ Oskari.clazz.define('Oskari.framework.bundle.admin-layeranalytics.AdminLayerAnal
             this.sandbox.register(me);
 
             // Let's extend UI
-            const reqName = 'userinterface.AddExtensionRequest';
-            const reqBuilder = Oskari.requestBuilder(reqName);
-            const request = reqBuilder(this);
-            sandbox.request(this, request);
+            this.navigation.start();
 
             Object.keys(this.eventHandlers).forEach(eventName => sandbox.registerForEventByName(this, eventName));
 
-            me.createUi();
+            if (!this.navigation.service) {
+                me.createUi();
+            }
+        },
+        /**
+         * @method stop
+         * Mainnavigation: removes the menu item. Divmanazer branch is unchanged (no cleanup).
+         */
+        stop () {
+            if (this.navigation.service) {
+                return this.navigation.stop();
+            }
+        },
+        createMenuItem ({ MenuItem, MenuItemActivationResult }) {
+            const menuItem = new MenuItem({
+                bundleId: this.mediator.bundleId,
+                sortOrder: 80,
+                name: this.getLocalization('title'),
+                tooltip: this.getLocalization('desc'),
+                setActive: (isActive) => {
+                    if (isActive) {
+                        const opened = this.showMainNavigationFlyout(() => menuItem.onClose?.(menuItem.getMenuItemId()));
+                        if (!opened) {
+                            return MenuItemActivationResult.FAILED;
+                        }
+                        this.produceAnalyticsListData();
+                        return MenuItemActivationResult.OK;
+                    }
+                    this.closeMainNavigationFlyout();
+                    return MenuItemActivationResult.OK;
+                }
+            });
+            return menuItem;
+        },
+        showMainNavigationFlyout (onClose) {
+            if (this.mainNavigationControls) {
+                return true;
+            }
+            const controls = showFlyout(this.getLocalization('flyout').title, this.getPaddedFlyoutContent(), () => {
+                if (this.mainNavigationControls !== controls) {
+                    return;
+                }
+                this.mainNavigationControls = null;
+                onClose();
+            }, { id: FLYOUT_ID });
+            if (!controls) {
+                return false;
+            }
+            this.mainNavigationControls = controls;
+            return true;
+        },
+        closeMainNavigationFlyout () {
+            const controls = this.mainNavigationControls;
+            this.mainNavigationControls = null;
+            controls?.close();
+        },
+        getPaddedFlyoutContent () {
+            return (
+                <FlyoutPadding>
+                    {this.view.getContent()}
+                </FlyoutPadding>
+            );
+        },
+        updateMainNavigationFlyout () {
+            this.mainNavigationControls?.update(this.getLocalization('flyout').title, this.getPaddedFlyoutContent());
+        },
+        /**
+         * Updates the UI in both divmanazer flyout and mainnavigation flyout
+         */
+        updateUI () {
+            if (this.navigation.service) {
+                this.updateMainNavigationFlyout();
+                return;
+            }
+            this.plugins['Oskari.userinterface.Flyout'].updateUI();
+        },
+        getSelectedLayerId () {
+            return this.view.getSelectedLayerId();
         },
         /**
          * @memberof BasicBundle
@@ -194,7 +284,7 @@ Oskari.clazz.define('Oskari.framework.bundle.admin-layeranalytics.AdminLayerAnal
 
         removeAnalyticsData (layerId, dataId) {
             this.updateLoadingState(true);
-            this.plugins['Oskari.userinterface.Flyout'].updateUI(); // show spinner
+            this.updateUI(); // show spinner
             const route = dataId ? Oskari.urls.getRoute('LayerStatus', { id: layerId, dataId: dataId }) : Oskari.urls.getRoute('LayerStatus', { id: layerId });
 
             fetch(route, {
@@ -211,10 +301,10 @@ Oskari.clazz.define('Oskari.framework.bundle.admin-layeranalytics.AdminLayerAnal
                 if (!dataId) {
                     // removed whole layer data
                     this.analyticsListData = this.analyticsListData.filter(item => item.id !== layerId);
-                    this.plugins['Oskari.userinterface.Flyout'].updateUI();
+                    this.updateUI();
                 } else {
                     // removed single usage data
-                    this.produceAnalyticsDetailsData(this.plugins['Oskari.userinterface.Flyout'].getSelectedLayerId());
+                    this.produceAnalyticsDetailsData(this.getSelectedLayerId());
                 }
             });
         },
@@ -248,7 +338,7 @@ Oskari.clazz.define('Oskari.framework.bundle.admin-layeranalytics.AdminLayerAnal
                     });
                 }
                 this.updateLoadingState();
-                this.plugins['Oskari.userinterface.Flyout'].updateUI();
+                this.updateUI();
             });
         },
 
@@ -274,7 +364,7 @@ Oskari.clazz.define('Oskari.framework.bundle.admin-layeranalytics.AdminLayerAnal
                     layerOrganization: layerOrganization
                 };
                 this.updateLoadingState();
-                this.plugins['Oskari.userinterface.Flyout'].updateUI();
+                this.updateUI();
             });
         },
 
