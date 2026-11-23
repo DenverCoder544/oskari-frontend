@@ -1,8 +1,5 @@
-﻿import React from 'react';
-import { Tabs } from 'oskari-ui';
-import { ThemeProvider, LocaleProvider } from 'oskari-ui/util';
 import { getReactRoot } from 'oskari-ui/components/window';
-import { DefaultViewsContent } from './DefaultViews.js';
+import { AdminView } from './view/AdminView.js';
 
 const BUNDLE_KEY = 'GenericAdmin';
 
@@ -10,7 +7,7 @@ export class GenericAdminFlyout {
     constructor (instance) {
         this.instance = instance;
         this.container = null;
-        this.dynamicTabs = [];
+        this.view = new AdminView();
     }
 
     setEl (el, flyout) {
@@ -30,31 +27,13 @@ export class GenericAdminFlyout {
     }
 
     addTab (item) {
-        this.dynamicTabs.push(item);
+        this.view.addTab(item);
         if (this.container) {
             this.render();
         }
     }
 
     render () {
-        const items = [
-            {
-                key: 'defaultviews',
-                label: Oskari.getMsg(BUNDLE_KEY, 'flyout.defaultviews.title'),
-                children: <DefaultViewsContent />
-            },
-            ...this.dynamicTabs.map(tab => ({
-                key: tab.id,
-                label: tab.title,
-                children: tab.content
-            }))
-        ];
-        getReactRoot(this.container).render(
-            <LocaleProvider value={{ bundleKey: BUNDLE_KEY }}>
-                <ThemeProvider>
-                    <Tabs items={items} />
-                </ThemeProvider>
-            </LocaleProvider>
-        );
+        getReactRoot(this.container).render(this.view.getContent());
     }
 }

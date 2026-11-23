@@ -1,17 +1,42 @@
-﻿import { GenericAdminFlyout } from './Flyout.js';
+import React from 'react';
+import { styled } from 'styled-components';
+import { NavigationAdapter } from 'oskari-ui/util/NavigationAdapter';
+import { showFlyout } from 'oskari-ui/components/window';
+import { GenericAdminFlyout } from './Flyout.js';
 import { BasicBundleInstance } from 'oskari-ui/BasicBundleInstance';
 import { ADD_TAB_NAME } from './request/AddTabRequest.js';
+import { AdminView } from './view/AdminView.js';
 const BUNDLE_NAME = 'GenericAdmin';
+const FLYOUT_ID = 'GenericAdmin';
+const FlyoutPadding = styled('div')`
+    margin: 0;
+    padding: 1.5em 1.5em 1.5em 1.75em;
+`;
 
 export class GenericAdmin extends BasicBundleInstance {
     constructor () {
         super(BUNDLE_NAME);
         this.plugins = {};
+        this.mainNavigationControls = null;
+        this.adminView = null;
+        this.navigation = new NavigationAdapter(this, {
+            createMenuItem: (navigation) => this.createMenuItem(navigation),
+            onStart: () => {
+                this.adminView = new AdminView();
+            },
+            onStop: () => {
+                this.closeMainNavigationFlyout();
+                this.adminView = null;
+            }
+        });
     }
 
     start (sandbox) {
         super.start(sandbox);
         this.on('userinterface.ExtensionUpdatedEvent', (event) => {
+            if (this.navigation.service) {
+                return;
+            }
             if (event.getExtension().getName() !== this.getName()) {
                 return;
             }
@@ -19,9 +44,8 @@ export class GenericAdmin extends BasicBundleInstance {
                 this.getFlyout().createUI();
             }
         });
-        const request = Oskari.requestBuilder('userinterface.AddExtensionRequest')(this);
-        this.getSandbox().request(this, request);
-        this.addRequestHandler(ADD_TAB_NAME, (req) => this.getFlyout().addTab({
+        this.navigation.start();
+        this.addRequestHandler(ADD_TAB_NAME, (req) => this.addTab({
             title: req.getTitle(),
             content: req.getContent(),
             priority: req.getPriority(),
@@ -38,6 +62,69 @@ export class GenericAdmin extends BasicBundleInstance {
             this,
             tileConfig
         );
+    }
+
+    createMenuItem ({ MenuItem, MenuItemActivationResult }) {
+        const menuItem = new MenuItem({
+            bundleId: this.mediator.bundleId,
+            sortOrder: 90,
+            name: this.getTitle(),
+            tooltip: this.getDescription(),
+            setActive: (isActive) => {
+                if (isActive) {
+                    const opened = this.showMainNavigationFlyout(() => menuItem.onClose?.(menuItem.getMenuItemId()));
+                    return opened ? MenuItemActivationResult.OK : MenuItemActivationResult.FAILED;
+                }
+                this.closeMainNavigationFlyout();
+                return MenuItemActivationResult.OK;
+            }
+        });
+        return menuItem;
+    }
+
+    showMainNavigationFlyout (onClose) {
+        if (this.mainNavigationControls) {
+            return true;
+        }
+        const controls = showFlyout(this.getTitle(), this.getPaddedFlyoutContent(), () => {
+            if (this.mainNavigationControls !== controls) {
+                return;
+            }
+            this.mainNavigationControls = null;
+            onClose();
+        }, { id: FLYOUT_ID });
+        if (!controls) {
+            return false;
+        }
+        this.mainNavigationControls = controls;
+        return true;
+    }
+
+    closeMainNavigationFlyout () {
+        const controls = this.mainNavigationControls;
+        this.mainNavigationControls = null;
+        controls?.close();
+    }
+
+    getPaddedFlyoutContent () {
+        return (
+            <FlyoutPadding>
+                {this.adminView.getContent()}
+            </FlyoutPadding>
+        );
+    }
+
+    updateMainNavigationFlyout () {
+        this.mainNavigationControls?.update(this.getTitle(), this.getPaddedFlyoutContent());
+    }
+
+    addTab (item) {
+        if (this.navigation.service) {
+            this.adminView.addTab(item);
+            this.updateMainNavigationFlyout();
+            return;
+        }
+        this.getFlyout().addTab(item);
     }
 
     getPlugins () {
@@ -57,8 +144,10 @@ export class GenericAdmin extends BasicBundleInstance {
     }
 
     stop () {
-        const removeReq = Oskari.requestBuilder('userinterface.RemoveExtensionRequest')(this);
-        this.getSandbox().request(this, removeReq);
+        const result = this.navigation.stop();
+        if (this.navigation.service) {
+            return result;
+        }
         super.stop();
     }
 }
